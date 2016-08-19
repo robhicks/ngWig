@@ -3,7 +3,7 @@
 /**
  * version: 3.0.7
  */
-var VERSION = '3.0.6';
+var VERSION = '3.0.7';
 angular.module('ngWig', ['ngwig-app-templates']);
 angular.ngWig = {
   version: VERSION
@@ -33,7 +33,6 @@ angular.module('ngWig').component('ngWig', {
     this.isSourceModeAllowed = 'sourceModeAllowed' in $attrs;
     this.editMode = false;
     this.toolbarButtons = ngWigToolbar.getToolbarButtons(this.buttons && string2array(this.buttons));
-    this.placeholder = $attrs.placeholder;
     $attrs.$observe('disabled', function (isDisabled) {
       _this.disabled = isDisabled;
       $container.attr('contenteditable', !isDisabled);
@@ -47,9 +46,14 @@ angular.module('ngWig').component('ngWig', {
         $window.getSelection().removeAllRanges();
       }
     };
+    this.contentLoaded = false;
 
     this.execCommand = function (command, options) {
       if (_this.editMode) return false;
+
+      if ($document[0].queryCommandSupported && !$document[0].queryCommandSupported(command)) {
+        throw 'The command "' + command + '" is not supported';
+      }
 
       if (command === 'createlink' || command === 'insertImage') {
         options = $window.prompt('Please enter the URL', 'http://');
@@ -57,24 +61,48 @@ angular.module('ngWig').component('ngWig', {
           return;
         }
       }
+
       _this.beforeExecCommand({ command: command, options: options });
-      $scope.$broadcast('execCommand', { command: command, options: options });
+
+      // use insertHtml for `createlink` command to account for IE/Edge purposes, in case there is no selection
+      var selection = $document[0].getSelection().toString();
+      if (command === 'createlink' && selection === '') {
+        $document[0].execCommand('insertHtml', false, '<a href="' + options + '">' + options + '</a>');
+      } else {
+        $document[0].execCommand(command, false, options);
+      }
+
       _this.afterExecCommand({ command: command, options: options });
+
+      // added temporarily to pass the tests. For some reason $container[0] is undefined during testing.
+      if ($container.length) {
+        $container[0].focus();
+      }
     };
 
     this.$onInit = function () {
       var placeholder = Boolean(_this.placeholder);
+
       _this.ngModelController.$render = function () {
-        return !placeholder ? $container.html(_this.ngModelController.$viewValue || '<p></p>') : $container.empty();
+        return _this.ngModelController.$viewValue ? $container.html(_this.ngModelController.$viewValue) : placeholder ? $container.empty() : $container.html('<p></p>');
       };
 
       $container.bind('blur keyup change focus click', function () {
         //view --> model
-        if (placeholder && !$container.html().length || placeholder && $container.html() === "<br>") $container.empty();
+        if (placeholder && (!$container.html().length || $container.html() === "<br>")) $container.empty();
         _this.ngModelController.$setViewValue($container.html());
         $scope.$applyAsync();
       });
     };
+
+    $scope.$watch(function () {
+      return _this.ngModelController.$viewValue;
+    }, function (nVal, oVal) {
+      if (nVal !== oVal && Boolean(_this.placeholder) && !_this.contentLoaded) {
+        $container.html(/^<p>/.test(_this.ngModelController.$viewValue) ? _this.ngModelController.$viewValue : '<p>' + _this.ngModelController.$viewValue + '</p>');
+        _this.contentLoaded = true;
+      }
+    });
 
     $container.on('paste', function (event) {
       if (!$attrs.onPaste) {
@@ -92,27 +120,6 @@ angular.module('ngWig').component('ngWig', {
       $q.when(_this.onPaste({ $event: event, pasteContent: pasteContent })).then(function (pasteText) {
         pasteHtmlAtCaret(pasteText);
       });
-    });
-
-    $scope.$on('execCommand', function (event, params) {
-      var selection = $document[0].getSelection().toString();
-      var command = params.command;
-      var options = params.options;
-
-      event.stopPropagation && event.stopPropagation();
-
-      $container[0].focus();
-
-      if ($document[0].queryCommandSupported && !$document[0].queryCommandSupported(command)) {
-        throw 'The command "' + command + '" is not supported';
-      }
-
-      // use insertHtml for `createlink` command to account for IE/Edge purposes, in case there is no selection
-      if (command === 'createlink' && selection === '') {
-        $document[0].execCommand('insertHtml', false, '<a href="' + options + '">' + options + '</a>');
-      } else {
-        $document[0].execCommand(command, false, options);
-      }
     });
   }]
 });

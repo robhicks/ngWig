@@ -33,6 +33,7 @@ angular.module('ngWig')
           $window.getSelection().removeAllRanges();
         }
       };
+      this.contentLoaded = false;
 
       this.execCommand = (command, options) => {
         if (this.editMode) return false;
@@ -82,6 +83,16 @@ angular.module('ngWig')
           $scope.$applyAsync();
         });
       };
+
+      $scope.$watch(
+        () => this.ngModelController.$viewValue,
+        (nVal, oVal) => {
+          if (nVal !== oVal && Boolean(this.placeholder) && !this.contentLoaded) {
+            $container.html(/^<p>/.test(this.ngModelController.$viewValue) ? this.ngModelController.$viewValue: `<p>${this.ngModelController.$viewValue}</p>`);
+            this.contentLoaded = true;
+          }
+        }
+      );
 
       $container.on('paste', (event) => {
         if(!$attrs.onPaste){
