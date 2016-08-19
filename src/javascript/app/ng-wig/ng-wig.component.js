@@ -87,8 +87,8 @@ angular.module('ngWig')
       $scope.$watch(
         () => this.ngModelController.$viewValue,
         (nVal, oVal) => {
-          if (nVal !== oVal && Boolean(this.placeholder) && !this.contentLoaded) {
-            $container.html(/^<p>/.test(this.ngModelController.$viewValue) ? this.ngModelController.$viewValue: `<p>${this.ngModelController.$viewValue}</p>`);
+          if (Boolean(this.placeholder) && !this.contentLoaded) {
+            $container.html(/^\<\p>/.test(this.ngModelController.$viewValue) ? this.ngModelController.$viewValue: `<p>${this.ngModelController.$viewValue}</p>`);
             this.contentLoaded = true;
           }
         }

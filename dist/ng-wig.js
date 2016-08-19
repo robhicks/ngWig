@@ -98,8 +98,8 @@ angular.module('ngWig').component('ngWig', {
     $scope.$watch(function () {
       return _this.ngModelController.$viewValue;
     }, function (nVal, oVal) {
-      if (nVal !== oVal && Boolean(_this.placeholder) && !_this.contentLoaded) {
-        $container.html(/^<p>/.test(_this.ngModelController.$viewValue) ? _this.ngModelController.$viewValue : '<p>' + _this.ngModelController.$viewValue + '</p>');
+      if (Boolean(_this.placeholder) && !_this.contentLoaded) {
+        $container.html(/^\<\p>/.test(_this.ngModelController.$viewValue) ? _this.ngModelController.$viewValue : '<p>' + _this.ngModelController.$viewValue + '</p>');
         _this.contentLoaded = true;
       }
     });
