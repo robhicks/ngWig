@@ -16,6 +16,7 @@ angular.module('ngWig')
     controller: function($scope, $element, $q, $attrs, $window, $document, ngWigToolbar) {
 
       var $container = angular.element($element[0].querySelector('#ng-wig-editable'));
+      let p = "<p></p>";
 
       //TODO: clean-up this attrs solution
       this.required = 'required' in $attrs;
@@ -71,28 +72,31 @@ angular.module('ngWig')
       this.$onInit = () => {
         let placeholder = Boolean(this.placeholder);
 
-        this.ngModelController.$render = () => this.ngModelController.$viewValue
+        this.ngModelController.$render = () => this.ngModelController.$viewValue && this.ngModelController.$viewValue !== p
           ? $container.html(this.ngModelController.$viewValue)
-          : placeholder ? $container.empty()
-          : $container.html('<p></p>');
+          : $container.empty();
 
-        $container.bind('blur keyup change focus click', () => {
+        $container.bind('blur keyup change focus click', (evt) => {
           //view --> model
-          if (placeholder && (!$container.html().length || $container.html() === "<br>")) $container.empty();
+          if (evt.type === 'focus' && $container.shouldBeEmpty()) $container.empty();
+          if (evt.type === 'blur' && $container.shouldBeEmpty()) $container.empty();
+          if (evt.type === 'keydown' && $container.shouldBeEmpty()) {
+            pasteHtmlAtCaret(p);
+          }
           this.ngModelController.$setViewValue($container.html());
           $scope.$applyAsync();
         });
       };
 
-      $scope.$watch(
-        () => this.ngModelController.$viewValue,
-        (nVal, oVal) => {
-          if (Boolean(this.placeholder) && !this.contentLoaded) {
-            $container.html(/^\<\p>/.test(this.ngModelController.$viewValue) ? this.ngModelController.$viewValue: `<p>${this.ngModelController.$viewValue}</p>`);
-            this.contentLoaded = true;
-          }
-        }
-      );
+      // $scope.$watch(
+      //   () => this.ngModelController.$viewValue,
+      //   (nVal, oVal) => {
+      //     if (Boolean(this.placeholder) && !this.contentLoaded) {
+      //       $container.html(/^\<\p>/.test(this.ngModelController.$viewValue) ? this.ngModelController.$viewValue: `<p>${this.ngModelController.$viewValue}</p>`);
+      //       this.contentLoaded = true;
+      //     }
+      //   }
+      // );
 
       $container.on('paste', (event) => {
         if(!$attrs.onPaste){
@@ -111,6 +115,14 @@ angular.module('ngWig')
           pasteHtmlAtCaret(pasteText);
         });
       });
+
+      $container.shouldBeEmpty = () => {
+        let empty = !$container.html().length;
+        let isP = $container.html() === p;
+        let isB = $container.html() === '<br>' || $container.html() === '<br><br>';
+        // console.log("empty", empty || isP || isB);
+        return empty;
+      };
     }
   });
 
